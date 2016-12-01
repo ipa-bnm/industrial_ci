@@ -89,7 +89,7 @@ BUILDER=catkin
 ROSWS=wstool
 # For compatibilility with hydro catkin, which has no --verbose flag
 CATKIN_TEST_RESULTS_CMD="catkin_test_results"
-if [ catkin_test_results --verbose 1>/dev/null 2>/dev/null; then CATKIN_TEST_RESULTS_CMD="catkin_test_results --verbose"; fi
+if [ catkin_test_results --verbose 1>/dev/null 2>/dev/null; then CATKIN_TEST_RESULTS_CMD="catkin_test_results"; fi
 
 if [ ! "$CATKIN_PARALLEL_JOBS" ]; then export CATKIN_PARALLEL_JOBS="-p4"; fi
 if [ ! "$CATKIN_PARALLEL_TEST_JOBS" ]; then export CATKIN_PARALLEL_TEST_JOBS="$CATKIN_PARALLEL_JOBS"; fi
@@ -124,11 +124,11 @@ sudo -E sh -c 'echo "deb $ROS_REPOSITORY_PATH `lsb_release -cs` main" > /etc/apt
 # apt key acquisition. Since keyserver may often become accessible, backup method is added.
 sudo apt-key adv --keyserver $APTKEY_STORE_SKS --recv-key $HASHKEY_SKS || ((echo 'Fetching apt key from SKS keyserver somehow failed. Trying to get one from alternative.\n'; wget $APTKEY_STORE_HTTPS -O - | sudo apt-key add -) || (echo 'Fetching apt key by an alternative method failed too. Exiting since ROS cannot be installed.'; error))
 lsb_release -a
-sudo apt-get update || (echo "ERROR: apt server not responding. This is a rare situation, and usually just waiting for a while clears this. See https://github.com/ros-industrial/industrial_ci/pull/56 for more of the discussion"; error)
-sudo apt-get -qq install -y python-catkin-tools python-rosdep python-wstool ros-$ROS_DISTRO-rosbash ros-$ROS_DISTRO-rospack
+sudo apt-get -qq update || (echo "ERROR: apt server not responding. This is a rare situation, and usually just waiting for a while clears this. See https://github.com/ros-industrial/industrial_ci/pull/56 for more of the discussion"; error)
+sudo apt-get -qq install -y python-catkin-tools python-rosdep python-wstool ros-$ROS_DISTRO-rosbash ros-$ROS_DISTRO-rospack 2>&1 >/dev/null
 # If more DEBs needed during preparation, define ADDITIONAL_DEBS variable where you list the name of DEB(S, delimitted by whitespace)
 if [ "$ADDITIONAL_DEBS" ]; then
-    sudo apt-get install -q -qq -y $ADDITIONAL_DEBS
+    sudo apt-get install -q -qq -y $ADDITIONAL_DEBS 2>&1 >/dev/null
     if [[ $? > 0 ]]; then
         echo "One or more additional deb installation is failed. Exiting."; error
     fi
@@ -137,7 +137,7 @@ fi
 dpkg -s mongodb || echo "ok"; export HAVE_MONGO_DB=$?
 if [ $HAVE_MONGO_DB == 0 ]; then
     sudo apt-get -qq remove -y mongodb mongodb-10gen || echo "ok"
-    sudo apt-get -qq install -y mongodb-clients mongodb-server -o Dpkg::Options::="--force-confdef" || echo "ok"
+    sudo apt-get -qq install -y mongodb-clients mongodb-server -o Dpkg::Options::="--force-confdef" 2>&1 >/dev/null || echo "ok"
 fi
 
 travis_time_end  # setup_ros
@@ -156,7 +156,7 @@ travis_time_start setup_catkin
 
 ## BEGIN: travis' before_install: # Use this to prepare the system to install prerequisites or dependencies ##
 # https://github.com/ros/ros_comm/pull/641, https://github.com/jsk-ros-pkg/jsk_travis/pull/110
-sudo apt-get -qq install -y ros-$ROS_DISTRO-roslaunch
+sudo apt-get -qq install -y ros-$ROS_DISTRO-roslaunch 2>&1 >/dev/null
 (cd /opt/ros/$ROS_DISTRO/lib/python2.7/dist-packages; wget --no-check-certificate https://patch-diff.githubusercontent.com/raw/ros/ros_comm/pull/641.diff -O /tmp/641.diff; [ "$ROS_DISTRO" == "hydro" ] && sed -i s@items@iteritems@ /tmp/641.diff ; sudo patch -p4 < /tmp/641.diff)
 
 travis_time_end  # setup_catkin
@@ -187,15 +187,15 @@ file) # When UPSTREAM_WORKSPACE is file, the dependended packages that need to b
     # Prioritize $ROSINSTALL_FILENAME.$ROS_DISTRO if it exists over $ROSINSTALL_FILENAME.
     if [ -e $TARGET_REPO_PATH/$ROSINSTALL_FILENAME.$ROS_DISTRO ]; then
         # install (maybe unreleased version) dependencies from source for specific ros version
-        $ROSWS merge file://$TARGET_REPO_PATH/$ROSINSTALL_FILENAME.$ROS_DISTRO
+        $ROSWS merge file://$TARGET_REPO_PATH/$ROSINSTALL_FILENAME.$ROS_DISTRO 2>&1 >/dev/null
     elif [ -e $TARGET_REPO_PATH/$ROSINSTALL_FILENAME ]; then
         # install (maybe unreleased version) dependencies from source
-        $ROSWS merge file://$TARGET_REPO_PATH/$ROSINSTALL_FILENAME
+        $ROSWS merge file://$TARGET_REPO_PATH/$ROSINSTALL_FILENAME 2>&1 >/dev/null
     fi
     ;;
 http://* | https://*) # When UPSTREAM_WORKSPACE is an http url, use it directly
     $ROSWS init .
-    $ROSWS merge $UPSTREAM_WORKSPACE
+    $ROSWS merge $UPSTREAM_WORKSPACE 2>&1 >/dev/null
     ;;
 esac
 
@@ -223,7 +223,7 @@ travis_time_start before_script
 
 ## BEGIN: travis' before_script: # Use this to prepare your build for testing e.g. copy database configurations, environment variables, etc.
 source /opt/ros/$ROS_DISTRO/setup.bash # re-source setup.bash for setting environmet vairable for package installed via rosdep
-if [ "${BEFORE_SCRIPT// }" != "" ]; then sh -c "${BEFORE_SCRIPT}"; fi
+if [ "${BEFORE_SCRIPT// }" != "" ]; then sh -c "${BEFORE_SCRIPT}" 2>&1 >/dev/null; fi
 
 travis_time_end  # before_script
 
@@ -231,7 +231,7 @@ travis_time_start rosdep_install
 
 # Run "rosdep install" command. Avoid manifest.xml files if any.
 if [ -e ${ICI_PKG_PATH}/rosdep-install.sh ]; then
-    ${ICI_PKG_PATH}/rosdep-install.sh
+    ${ICI_PKG_PATH}/rosdep-install.sh 2>&1 >/dev/null
 fi
 
 travis_time_end  # rosdep_install
@@ -260,7 +260,7 @@ source /opt/ros/$ROS_DISTRO/setup.bash # re-source setup.bash for setting enviro
 # for catkin
 if [ "${TARGET_PKGS// }" == "" ]; then export TARGET_PKGS=`catkin_topological_order ${TARGET_REPO_PATH} --only-names`; fi
 if [ "${PKGS_DOWNSTREAM// }" == "" ]; then export PKGS_DOWNSTREAM=$( [ "${BUILD_PKGS_WHITELIST// }" == "" ] && echo "$TARGET_PKGS" || echo "$BUILD_PKGS_WHITELIST"); fi
-if [ "$BUILDER" == catkin ]; then catkin build -i -v --summarize  --no-status $BUILD_PKGS_WHITELIST $CATKIN_PARALLEL_JOBS --make-args $ROS_PARALLEL_JOBS            ; fi
+if [ "$BUILDER" == catkin ]; then catkin build -i --summarize  --no-status $BUILD_PKGS_WHITELIST $CATKIN_PARALLEL_JOBS --make-args $ROS_PARALLEL_JOBS            ; fi
 
 travis_time_end  # catkin_build
 
@@ -277,7 +277,7 @@ if [ "$NOT_TEST_BUILD" != "true" ]; then
 
     if [ "$BUILDER" == catkin ]; then
         source devel/setup.bash ; rospack profile # force to update ROS_PACKAGE_PATH for rostest
-        catkin run_tests -iv --no-deps --no-status $PKGS_DOWNSTREAM $CATKIN_PARALLEL_TEST_JOBS --make-args $ROS_PARALLEL_TEST_JOBS --
+        catkin run_tests -i --no-deps --no-status $PKGS_DOWNSTREAM $CATKIN_PARALLEL_TEST_JOBS --make-args $ROS_PARALLEL_TEST_JOBS --
         catkin_test_results build || error
     fi
 
@@ -293,7 +293,7 @@ if [ "$NOT_TEST_INSTALL" != "true" ]; then
     if [ "$BUILDER" == catkin ]; then
         catkin clean --yes
         catkin config --install
-        catkin build -i -v --summarize --no-status $BUILD_PKGS_WHITELIST $CATKIN_PARALLEL_JOBS --make-args $ROS_PARALLEL_JOBS
+        catkin build -i --summarize --no-status $BUILD_PKGS_WHITELIST $CATKIN_PARALLEL_JOBS --make-args $ROS_PARALLEL_JOBS
         source install/setup.bash
         rospack profile
     fi

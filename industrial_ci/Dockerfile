@@ -10,6 +10,7 @@ RUN apt-get update -qq \
         lsb-release \
         python-pip \
         wget \
-    && apt-get clean
+        2>&1 >/dev/null \
+    && apt-get clean 2>&1 >/dev/null
 ENV IN_DOCKER 1
 ENV TERM xterm
