@@ -79,6 +79,8 @@ if [[ "$ROS_DISTRO" == "kinetic" ]] && ! [ "$IN_DOCKER" ]; then
       -e USE_DEB \
       -e UPSTREAM_WORKSPACE \
       -e ROSINSTALL_FILENAME \
+      -v $(dirname $SSH_AUTH_SOCK):$(dirname $SSH_AUTH_SOCK) \
+      -e SSH_AUTH_SOCK=$SSH_AUTH_SOCK \
       -v $TARGET_REPO_PATH/:/root/ci_src industrial-ci/xenial \
       /bin/bash -c "cd /root/ci_src; source .ci_config/travis.sh;"
   retval=$?
