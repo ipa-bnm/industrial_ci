@@ -88,6 +88,8 @@ if [[ "$ROS_DISTRO" == "kinetic" ]] && ! [ "$IN_DOCKER" ]; then
   if [ $retval -eq 0 ]; then HIT_ENDOFSCRIPT=true; success 0; else exit; fi  # Call  travis_time_end  run_travissh_docker
 fi
 
+ssh-add -l
+
 travis_time_start init_travis_environment
 # Define more env vars
 BUILDER=catkin
