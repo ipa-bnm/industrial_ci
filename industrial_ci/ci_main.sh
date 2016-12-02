@@ -57,6 +57,7 @@ if [[ "$ROS_DISTRO" == "kinetic" ]] && ! [ "$IN_DOCKER" ]; then
 
   travis_time_start run_travissh_docker
   docker run \
+      -t -i \
       -e ROS_REPOSITORY_PATH \
       -e ROS_DISTRO \
       -e ADDITIONAL_DEBS \
