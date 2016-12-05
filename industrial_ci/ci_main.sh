@@ -239,7 +239,7 @@ travis_time_start rosdep_install
 
 # Run "rosdep install" command. Avoid manifest.xml files if any.
 if [ -e ${ICI_PKG_PATH}/rosdep-install.sh ]; then
-    ${ICI_PKG_PATH}/rosdep-install.sh 2>&1 >/dev/null
+    ${ICI_PKG_PATH}/rosdep-install.sh
 fi
 
 travis_time_end  # rosdep_install
