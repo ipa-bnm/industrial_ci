@@ -56,8 +56,14 @@ if [[ "$ROS_DISTRO" == "kinetic" ]] && ! [ "$IN_DOCKER" ]; then
   travis_time_end  # build_docker_image
 
   travis_time_start run_travissh_docker
+
+  if [ "$SSH_AUTH_SOCK" ]; then
+      export SSH_DOCKER_CMD="-t -i -v $(dirname $SSH_AUTH_SOCK):$(dirname $SSH_AUTH_SOCK) -e SSH_AUTH_SOCK=$SSH_AUTH_SOCK"
+  else
+      export SSH_DOCKER_CMD=""
+  fi
+
   docker run \
-      -t -i \
       -e ROS_REPOSITORY_PATH \
       -e ROS_DISTRO \
       -e ADDITIONAL_DEBS \
@@ -80,8 +86,7 @@ if [[ "$ROS_DISTRO" == "kinetic" ]] && ! [ "$IN_DOCKER" ]; then
       -e USE_DEB \
       -e UPSTREAM_WORKSPACE \
       -e ROSINSTALL_FILENAME \
-      -v $(dirname $SSH_AUTH_SOCK):$(dirname $SSH_AUTH_SOCK) \
-      -e SSH_AUTH_SOCK=$SSH_AUTH_SOCK \
+      $SSH_DOCKER_CMD \
       -v $TARGET_REPO_PATH/:/root/ci_src industrial-ci/xenial \
       /bin/bash -c "cd /root/ci_src; source .ci_config/travis.sh;"
   retval=$?
@@ -239,7 +244,7 @@ travis_time_start rosdep_install
 
 # Run "rosdep install" command. Avoid manifest.xml files if any.
 if [ -e ${ICI_PKG_PATH}/rosdep-install.sh ]; then
-    ${ICI_PKG_PATH}/rosdep-install.sh
+    ${ICI_PKG_PATH}/rosdep-install.sh 2>&1 >/dev/null
 fi
 
 travis_time_end  # rosdep_install
