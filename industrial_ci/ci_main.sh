@@ -36,7 +36,11 @@
 ## See ./README.rst for the detailed usage.
 
 set -e
-set -x
+if [ ! "$DEBUG_BASH" ]; then
+  set +x
+else
+  set -x
+fi
 
 # Define some env vars that need to come earlier than util.sh
 export ICI_PKG_PATH=$(pwd)  # The path on CI service (e.g. Travis CI) of industrial_ci top dir.
@@ -86,6 +90,7 @@ if [[ "$ROS_DISTRO" == "kinetic" ]] && ! [ "$IN_DOCKER" ]; then
       -e USE_DEB \
       -e UPSTREAM_WORKSPACE \
       -e ROSINSTALL_FILENAME \
+      -e DEBUG_BASH \
       $SSH_DOCKER_CMD \
       -v $TARGET_REPO_PATH/:/root/ci_src industrial-ci/xenial \
       /bin/bash -c "cd /root/ci_src; source .ci_config/travis.sh;"
@@ -200,15 +205,15 @@ file) # When UPSTREAM_WORKSPACE is file, the dependended packages that need to b
     # Prioritize $ROSINSTALL_FILENAME.$ROS_DISTRO if it exists over $ROSINSTALL_FILENAME.
     if [ -e $TARGET_REPO_PATH/$ROSINSTALL_FILENAME.$ROS_DISTRO ]; then
         # install (maybe unreleased version) dependencies from source for specific ros version
-        $ROSWS merge file://$TARGET_REPO_PATH/$ROSINSTALL_FILENAME.$ROS_DISTRO 2>&1 >/dev/null
+        $ROSWS merge file://$TARGET_REPO_PATH/$ROSINSTALL_FILENAME.$ROS_DISTRO
     elif [ -e $TARGET_REPO_PATH/$ROSINSTALL_FILENAME ]; then
         # install (maybe unreleased version) dependencies from source
-        $ROSWS merge file://$TARGET_REPO_PATH/$ROSINSTALL_FILENAME 2>&1 >/dev/null
+        $ROSWS merge file://$TARGET_REPO_PATH/$ROSINSTALL_FILENAME
     fi
     ;;
 http://* | https://*) # When UPSTREAM_WORKSPACE is an http url, use it directly
     $ROSWS init .
-    $ROSWS merge $UPSTREAM_WORKSPACE 2>&1 >/dev/null
+    $ROSWS merge $UPSTREAM_WORKSPACE
     ;;
 esac
 
@@ -236,7 +241,7 @@ travis_time_start before_script
 
 ## BEGIN: travis' before_script: # Use this to prepare your build for testing e.g. copy database configurations, environment variables, etc.
 source /opt/ros/$ROS_DISTRO/setup.bash # re-source setup.bash for setting environmet vairable for package installed via rosdep
-if [ "${BEFORE_SCRIPT// }" != "" ]; then sh -c "${BEFORE_SCRIPT}" 2>&1 >/dev/null; fi
+if [ "${BEFORE_SCRIPT// }" != "" ]; then sh -c "${BEFORE_SCRIPT}"; fi
 
 travis_time_end  # before_script
 
@@ -273,7 +278,7 @@ source /opt/ros/$ROS_DISTRO/setup.bash # re-source setup.bash for setting enviro
 # for catkin
 if [ "${TARGET_PKGS// }" == "" ]; then export TARGET_PKGS=`catkin_topological_order ${TARGET_REPO_PATH} --only-names`; fi
 if [ "${PKGS_DOWNSTREAM// }" == "" ]; then export PKGS_DOWNSTREAM=$( [ "${BUILD_PKGS_WHITELIST// }" == "" ] && echo "$TARGET_PKGS" || echo "$BUILD_PKGS_WHITELIST"); fi
-if [ "$BUILDER" == catkin ]; then catkin build -i --summarize  --no-status $BUILD_PKGS_WHITELIST $CATKIN_PARALLEL_JOBS --make-args $ROS_PARALLEL_JOBS            ; fi
+if [ "$BUILDER" == catkin ]; then catkin build --summarize  --no-status $BUILD_PKGS_WHITELIST $CATKIN_PARALLEL_JOBS --make-args $ROS_PARALLEL_JOBS            ; fi
 
 travis_time_end  # catkin_build
 
@@ -290,7 +295,7 @@ if [ "$NOT_TEST_BUILD" != "true" ]; then
 
     if [ "$BUILDER" == catkin ]; then
         source devel/setup.bash ; rospack profile # force to update ROS_PACKAGE_PATH for rostest
-        catkin run_tests -i --no-deps --no-status $PKGS_DOWNSTREAM $CATKIN_PARALLEL_TEST_JOBS --make-args $ROS_PARALLEL_TEST_JOBS --
+        catkin run_tests --no-deps --no-status $PKGS_DOWNSTREAM $CATKIN_PARALLEL_TEST_JOBS --make-args $ROS_PARALLEL_TEST_JOBS --
         catkin_test_results build || error
     fi
 
@@ -306,7 +311,7 @@ if [ "$NOT_TEST_INSTALL" != "true" ]; then
     if [ "$BUILDER" == catkin ]; then
         catkin clean --yes
         catkin config --install
-        catkin build -i --summarize --no-status $BUILD_PKGS_WHITELIST $CATKIN_PARALLEL_JOBS --make-args $ROS_PARALLEL_JOBS
+        catkin build --summarize --no-status $BUILD_PKGS_WHITELIST $CATKIN_PARALLEL_JOBS --make-args $ROS_PARALLEL_JOBS
         source install/setup.bash
         rospack profile
     fi
